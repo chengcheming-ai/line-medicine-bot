@@ -41,10 +41,20 @@ def upload_image(path):
     if sha:
         body["sha"] = sha
     r = requests.put(api_url, headers=headers, json=body, timeout=20)
-    if r.status_code in (200, 201):
-        print(f"[upload] GitHub OK: {IMG_RAW_URL}")
-        return IMG_RAW_URL
-    print(f"[upload] GitHub 失敗: {r.status_code} {r.text[:100]}")
+    if r.status_code not in (200, 201):
+        print(f"[upload] GitHub 失敗: {r.status_code} {r.text[:100]}")
+        return None
+
+    # 等待 CDN 傳播，最多確認 5 次
+    import time
+    for i in range(5):
+        time.sleep(3)
+        check = requests.get(IMG_RAW_URL, timeout=10)
+        if check.status_code == 200:
+            print(f"[upload] GitHub OK: {IMG_RAW_URL}")
+            return IMG_RAW_URL
+        print(f"[upload] 等待 CDN ({i+1}/5)...")
+    print("[upload] GitHub CDN 逾時")
     return None
 
 img_url = upload_image(IMG_PATH)
