@@ -4,7 +4,7 @@ LINE 吃藥提醒推播
 2. 上傳至 telegra.ph 取得公開 HTTPS URL
 3. 透過 LINE Push API 發送圖片訊息
 """
-import os, requests
+import os, base64, requests
 from dotenv import load_dotenv
 from generate_reminder import generate
 
@@ -18,61 +18,34 @@ IMG_PATH = os.path.join(os.path.dirname(os.path.abspath(__file__)), "reminder.jp
 generate(slot=None, out_path=IMG_PATH)
 
 # ── 2. 上傳圖片取得 HTTPS URL（catbox → 0x0.st 備援）────────
+GITHUB_TOKEN = os.getenv("GITHUB_TOKEN")
+REPO         = "chengcheming-ai/line-medicine-bot"
+IMG_RAW_URL  = f"https://raw.githubusercontent.com/{REPO}/master/images/reminder.jpg"
+
 def upload_image(path):
+    if not GITHUB_TOKEN:
+        print("[upload] 無 GITHUB_TOKEN，改傳文字")
+        return None
     with open(path, "rb") as f:
-        data = f.read()
-
-    uploaders = [
-        ("catbox",      lambda: _upload_catbox(data)),
-        ("litterbox",   lambda: _upload_litterbox(data)),
-        ("transfer.sh", lambda: _upload_transfer(data)),
-        ("0x0.st",      lambda: _upload_0x0(data)),
-    ]
-    for name, fn in uploaders:
-        try:
-            url = fn()
-            if url and url.startswith("https://"):
-                print(f"[upload] {name} OK: {url}")
-                return url
-            print(f"[upload] {name} 無效回應")
-        except Exception as e:
-            print(f"[upload] {name} 失敗: {e}")
+        content_b64 = base64.b64encode(f.read()).decode()
+    headers = {
+        "Authorization": f"Bearer {GITHUB_TOKEN}",
+        "Accept": "application/vnd.github+json",
+    }
+    api_url = f"https://api.github.com/repos/{REPO}/contents/images/reminder.jpg"
+    sha = ""
+    r = requests.get(api_url, headers=headers, timeout=10)
+    if r.status_code == 200:
+        sha = r.json().get("sha", "")
+    body = {"message": "update reminder image", "content": content_b64}
+    if sha:
+        body["sha"] = sha
+    r = requests.put(api_url, headers=headers, json=body, timeout=20)
+    if r.status_code in (200, 201):
+        print(f"[upload] GitHub OK: {IMG_RAW_URL}")
+        return IMG_RAW_URL
+    print(f"[upload] GitHub 失敗: {r.status_code} {r.text[:100]}")
     return None
-
-def _upload_catbox(data):
-    r = requests.post(
-        "https://catbox.moe/user/api.php",
-        data={"reqtype": "fileupload"},
-        files={"fileToUpload": ("reminder.jpg", data, "image/jpeg")},
-        timeout=20,
-    )
-    return r.text.strip()
-
-def _upload_litterbox(data):
-    r = requests.post(
-        "https://litterbox.catbox.moe/resources/internals/api.php",
-        data={"reqtype": "fileupload", "time": "72h"},
-        files={"fileToUpload": ("reminder.jpg", data, "image/jpeg")},
-        timeout=20,
-    )
-    return r.text.strip()
-
-def _upload_transfer(data):
-    r = requests.put(
-        "https://transfer.sh/reminder.jpg",
-        data=data,
-        headers={"Content-Type": "image/jpeg", "Max-Downloads": "10", "Max-Days": "1"},
-        timeout=20,
-    )
-    return r.text.strip()
-
-def _upload_0x0(data):
-    r = requests.post(
-        "https://0x0.st",
-        files={"file": ("reminder.jpg", data, "image/jpeg")},
-        timeout=20,
-    )
-    return r.text.strip()
 
 img_url = upload_image(IMG_PATH)
 

@@ -9,6 +9,8 @@ on:
 jobs:
   send-reminder:
     runs-on: ubuntu-latest
+    permissions:
+      contents: write
     steps:
       - uses: actions/checkout@v4
 
@@ -28,4 +30,5 @@ jobs:
         env:
           CHANNEL_ACCESS_TOKEN: ${{ secrets.CHANNEL_ACCESS_TOKEN }}
           GROUP_ID: ${{ secrets.GROUP_ID }}
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         run: python send_reminder.py
