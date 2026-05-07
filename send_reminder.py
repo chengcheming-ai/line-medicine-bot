@@ -50,7 +50,9 @@ def upload_image(path):
     for i in range(5):
         time.sleep(3)
         check = requests.get(IMG_RAW_URL, timeout=10)
-        if check.status_code == 200:
+        ct = check.headers.get("Content-Type", "")
+        print(f"[check] status={check.status_code} Content-Type={ct}")
+        if check.status_code == 200 and "image" in ct:
             print(f"[upload] GitHub OK: {IMG_RAW_URL}")
             return IMG_RAW_URL
         print(f"[upload] 等待 CDN ({i+1}/5)...")
