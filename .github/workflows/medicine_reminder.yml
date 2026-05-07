@@ -1,0 +1,31 @@
+name: 吃藥提醒
+
+on:
+  schedule:
+    - cron: '0 5 * * *'    # 13:00 Asia/Taipei
+    - cron: '0 12 * * *'   # 20:00 Asia/Taipei
+  workflow_dispatch:        # 手動觸發（測試用）
+
+jobs:
+  send-reminder:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+          cache: 'pip'
+
+      - name: Install Chinese fonts
+        run: sudo apt-get install -y fonts-noto-cjk
+
+      - name: Install dependencies
+        run: pip install -r requirements.txt
+
+      - name: Send reminder
+        env:
+          CHANNEL_ACCESS_TOKEN: ${{ secrets.CHANNEL_ACCESS_TOKEN }}
+          GROUP_ID: ${{ secrets.GROUP_ID }}
+        run: python send_reminder.py
