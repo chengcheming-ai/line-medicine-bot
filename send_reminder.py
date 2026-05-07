@@ -22,36 +22,57 @@ def upload_image(path):
     with open(path, "rb") as f:
         data = f.read()
 
-    # 嘗試 catbox.moe
-    try:
-        r = requests.post(
-            "https://catbox.moe/user/api.php",
-            data={"reqtype": "fileupload"},
-            files={"fileToUpload": ("reminder.jpg", data, "image/jpeg")},
-            timeout=30,
-        )
-        url = r.text.strip()
-        if url.startswith("https://"):
-            print(f"catbox 上傳成功: {url}")
-            return url
-    except Exception as e:
-        print(f"catbox 失敗: {e}")
-
-    # 備援：0x0.st
-    try:
-        r = requests.post(
-            "https://0x0.st",
-            files={"file": ("reminder.jpg", data, "image/jpeg")},
-            timeout=30,
-        )
-        url = r.text.strip()
-        if url.startswith("https://"):
-            print(f"0x0.st 上傳成功: {url}")
-            return url
-    except Exception as e:
-        print(f"0x0.st 失敗: {e}")
-
+    uploaders = [
+        ("catbox",      lambda: _upload_catbox(data)),
+        ("litterbox",   lambda: _upload_litterbox(data)),
+        ("transfer.sh", lambda: _upload_transfer(data)),
+        ("0x0.st",      lambda: _upload_0x0(data)),
+    ]
+    for name, fn in uploaders:
+        try:
+            url = fn()
+            if url and url.startswith("https://"):
+                print(f"[upload] {name} OK: {url}")
+                return url
+            print(f"[upload] {name} 無效回應")
+        except Exception as e:
+            print(f"[upload] {name} 失敗: {e}")
     return None
+
+def _upload_catbox(data):
+    r = requests.post(
+        "https://catbox.moe/user/api.php",
+        data={"reqtype": "fileupload"},
+        files={"fileToUpload": ("reminder.jpg", data, "image/jpeg")},
+        timeout=20,
+    )
+    return r.text.strip()
+
+def _upload_litterbox(data):
+    r = requests.post(
+        "https://litterbox.catbox.moe/resources/internals/api.php",
+        data={"reqtype": "fileupload", "time": "72h"},
+        files={"fileToUpload": ("reminder.jpg", data, "image/jpeg")},
+        timeout=20,
+    )
+    return r.text.strip()
+
+def _upload_transfer(data):
+    r = requests.put(
+        "https://transfer.sh/reminder.jpg",
+        data=data,
+        headers={"Content-Type": "image/jpeg", "Max-Downloads": "10", "Max-Days": "1"},
+        timeout=20,
+    )
+    return r.text.strip()
+
+def _upload_0x0(data):
+    r = requests.post(
+        "https://0x0.st",
+        files={"file": ("reminder.jpg", data, "image/jpeg")},
+        timeout=20,
+    )
+    return r.text.strip()
 
 img_url = upload_image(IMG_PATH)
 
