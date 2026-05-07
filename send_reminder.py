@@ -17,24 +17,43 @@ IMG_PATH = os.path.join(os.path.dirname(os.path.abspath(__file__)), "reminder.jp
 # ── 1. 生成圖片（自動依時段選話語/經文/背景）────────────────
 generate(slot=None, out_path=IMG_PATH)
 
-# ── 2. 上傳至 catbox.moe 取得 HTTPS URL ─────────────────────
-img_url = None
-try:
-    with open(IMG_PATH, "rb") as f:
+# ── 2. 上傳圖片取得 HTTPS URL（catbox → 0x0.st 備援）────────
+def upload_image(path):
+    with open(path, "rb") as f:
+        data = f.read()
+
+    # 嘗試 catbox.moe
+    try:
         r = requests.post(
             "https://catbox.moe/user/api.php",
             data={"reqtype": "fileupload"},
-            files={"fileToUpload": ("reminder.jpg", f, "image/jpeg")},
+            files={"fileToUpload": ("reminder.jpg", data, "image/jpeg")},
             timeout=30,
         )
-    url = r.text.strip()
-    if url.startswith("https://"):
-        img_url = url
-        print(f"上傳成功: {img_url}")
-    else:
-        raise ValueError(f"非預期回應: {url}")
-except Exception as e:
-    print(f"圖片上傳失敗，改傳文字: {e}")
+        url = r.text.strip()
+        if url.startswith("https://"):
+            print(f"catbox 上傳成功: {url}")
+            return url
+    except Exception as e:
+        print(f"catbox 失敗: {e}")
+
+    # 備援：0x0.st
+    try:
+        r = requests.post(
+            "https://0x0.st",
+            files={"file": ("reminder.jpg", data, "image/jpeg")},
+            timeout=30,
+        )
+        url = r.text.strip()
+        if url.startswith("https://"):
+            print(f"0x0.st 上傳成功: {url}")
+            return url
+    except Exception as e:
+        print(f"0x0.st 失敗: {e}")
+
+    return None
+
+img_url = upload_image(IMG_PATH)
 
 # ── 3. 發送 LINE 訊息 ─────────────────────────────────────────
 headers = {
