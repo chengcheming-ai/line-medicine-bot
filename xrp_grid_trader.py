@@ -14,7 +14,8 @@ load_dotenv()
 ETORO_API_KEY  = os.getenv("ETORO_API_KEY")
 ETORO_USER_KEY = os.getenv("ETORO_USER_KEY")
 
-BASE_URL = "https://public-api.etoro.com/api/v1"
+BASE_URL    = "https://public-api.etoro.com/api/v1"
+XRP_INST_ID = 100003  # XRP instrument ID（固定值）
 
 # ── 網格參數 ──────────────────────────────────────────────────
 BUY_START  = 1.40   # 第一格買入價
@@ -36,34 +37,24 @@ def make_headers():
         "Content-Type": "application/json",
     }
 
-def find_xrp_instrument_id():
+def get_xrp_price():
     r = requests.get(
-        f"{BASE_URL}/market-data/search",
-        params={"internalSymbolFull": "XRP"},
+        f"{BASE_URL}/market-data/instruments/rates",
+        params={"instrumentIds": XRP_INST_ID},
         headers=make_headers(), timeout=10
     )
     r.raise_for_status()
     data = r.json()
-    items = data.get("items", []) if isinstance(data, dict) else data
-    for item in items:
-        if item.get("internalSymbolFull") == "XRP":
-            return item["instrumentId"]
-    raise ValueError(f"找不到 XRP 商品 ID，回應: {data}")
-
-def get_xrp_price(instrument_id):
-    r = requests.get(
-        f"{BASE_URL}/market-data/instruments",
-        params={"instrumentIds": instrument_id},
-        headers=make_headers(), timeout=10
-    )
-    r.raise_for_status()
-    data = r.json()
-    items = data if isinstance(data, list) else data.get("instruments", [data])
-    for item in items:
-        if item.get("instrumentId") == instrument_id:
-            for field in ("rate", "ask", "lastPrice", "close"):
+    items = data if isinstance(data, list) else data.get("rates", data.get("items", data.get("instrumentRates", [])))
+    if isinstance(items, list):
+        for item in items:
+            for field in ("rate", "ask", "bid", "lastPrice", "close", "price"):
                 if field in item:
                     return float(item[field])
+    elif isinstance(items, dict):
+        for field in ("rate", "ask", "bid", "lastPrice", "close", "price"):
+            if field in items:
+                return float(items[field])
     raise ValueError(f"無法從回應中取得 XRP 價格: {data}")
 
 def get_portfolio():
@@ -118,17 +109,10 @@ def run():
     print(f"[{now}] XRP 網格交易機器人啟動")
 
     state = load_state()
-
-    # 取得/快取 XRP instrument ID
-    if not state.get("instrument_id"):
-        print("正在查詢 XRP 商品 ID...")
-        state["instrument_id"] = find_xrp_instrument_id()
-        print(f"XRP instrument ID: {state['instrument_id']}")
-        save_state(state)
-    inst_id = state["instrument_id"]
+    inst_id = XRP_INST_ID
 
     # 取得目前價格
-    price = get_xrp_price(inst_id)
+    price = get_xrp_price()
     print(f"XRP 目前價格: ${price:.4f}")
 
     # 取得投資組合
