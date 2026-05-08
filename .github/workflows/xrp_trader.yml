@@ -1,0 +1,47 @@
+name: XRP 網格交易
+
+on:
+  schedule:
+    - cron: '*/5 * * * *'   # 每 5 分鐘檢查一次
+  workflow_dispatch:         # 手動觸發（測試用）
+
+concurrency:
+  group: xrp-trader
+  cancel-in-progress: false  # 不中斷進行中的交易
+
+jobs:
+  trade:
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Pull latest state
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "github-actions[bot]@users.noreply.github.com"
+          git pull --rebase origin master || true
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+          cache: 'pip'
+
+      - name: Install dependencies
+        run: pip install requests python-dotenv
+
+      - name: Run grid trader
+        env:
+          ETORO_API_KEY:  ${{ secrets.ETORO_API_KEY }}
+          ETORO_USER_KEY: ${{ secrets.ETORO_USER_KEY }}
+        run: python xrp_grid_trader.py
+
+      - name: Commit state
+        run: |
+          git add xrp_state.json
+          git diff --staged --quiet || git commit -m "chore: update XRP grid state"
+          git push || (git pull --rebase origin master && git push)
