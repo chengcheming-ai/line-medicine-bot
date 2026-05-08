@@ -81,7 +81,12 @@ def get_portfolio():
         headers=make_headers(), timeout=10
     )
     r.raise_for_status()
-    return r.json()
+    data = r.json()
+    # DEBUG: 印出頂層欄位與餘額相關數值
+    top_keys = {k: data[k] for k in list(data.keys())[:20] if not isinstance(data[k], list)}
+    print(f"  [DEBUG] portfolio top-level keys: {list(data.keys())}")
+    print(f"  [DEBUG] non-list values: {top_keys}")
+    return data
 
 def buy_xrp(instrument_id, amount_usd):
     body = {
