@@ -4,8 +4,9 @@ LINE 吃藥提醒推播
 2. 上傳至 GitHub repo 取得公開 HTTPS URL
 3. 透過 LINE Push API 發送圖片訊息至個人帳號
 """
-import os, base64, time, requests
+import os, base64, time, logging, requests
 from dotenv import load_dotenv
+from logging.handlers import RotatingFileHandler
 from generate_reminder import generate
 
 load_dotenv()
@@ -14,17 +15,28 @@ TOKEN    = os.getenv("CHANNEL_ACCESS_TOKEN")
 USER_ID  = os.getenv("USER_ID")
 IMG_PATH = os.path.join(os.path.dirname(os.path.abspath(__file__)), "reminder.jpg")
 
+# ── logging ──────────────────────────────────────────────────
+os.makedirs("logs", exist_ok=True)
+_handler = RotatingFileHandler("logs/bot.log", maxBytes=100_000, backupCount=3, encoding="utf-8")
+_handler.setFormatter(logging.Formatter("%(asctime)s %(levelname)s %(message)s", "%Y-%m-%d %H:%M:%S"))
+log = logging.getLogger("reminder")
+log.setLevel(logging.INFO)
+log.addHandler(_handler)
+log.addHandler(logging.StreamHandler())
+
 GITHUB_TOKEN = os.getenv("GITHUB_TOKEN")
 REPO         = "chengcheming-ai/line-medicine-bot"
 IMG_RAW_URL  = f"https://raw.githubusercontent.com/{REPO}/master/images/reminder.jpg"
 
 # ── 1. 生成圖片 ───────────────────────────────────────────────
+log.info("開始生成提醒圖片")
 generate(slot=None, out_path=IMG_PATH)
+log.info("圖片生成完成: %s", IMG_PATH)
 
 # ── 2. 上傳至 GitHub repo ─────────────────────────────────────
 def upload_image(path):
     if not GITHUB_TOKEN:
-        print("[upload] 無 GITHUB_TOKEN")
+        log.warning("無 GITHUB_TOKEN，跳過圖片上傳")
         return None
     with open(path, "rb") as f:
         content_b64 = base64.b64encode(f.read()).decode()
@@ -42,16 +54,16 @@ def upload_image(path):
         body["sha"] = sha
     r = requests.put(api_url, headers=headers, json=body, timeout=20)
     if r.status_code not in (200, 201):
-        print(f"[upload] GitHub 失敗: {r.status_code}")
+        log.error("GitHub 上傳失敗: %s", r.status_code)
         return None
     for i in range(5):
         time.sleep(3)
         check = requests.get(IMG_RAW_URL, timeout=10)
         if check.status_code == 200 and "image" in check.headers.get("Content-Type", ""):
-            print(f"[upload] GitHub OK: {IMG_RAW_URL}")
+            log.info("GitHub 上傳 OK: %s", IMG_RAW_URL)
             return IMG_RAW_URL
-        print(f"[upload] 等待 CDN ({i+1}/5)...")
-    print("[upload] CDN 逾時")
+        log.info("等待 CDN (%d/5)...", i + 1)
+    log.error("CDN 逾時，圖片無法取得")
     return None
 
 img_url = upload_image(IMG_PATH)
@@ -76,5 +88,7 @@ for target_id, label in [(USER_ID, "個人"), (os.getenv("GROUP_ID"), "群組")]
         json={"to": target_id, "messages": msg},
         timeout=15,
     )
-    status = "OK" if resp.status_code == 200 else f"FAIL ({resp.status_code}: {resp.text})"
-    print(f"LINE 推播({label}): {status}")
+    if resp.status_code == 200:
+        log.info("LINE 推播(%s) OK", label)
+    else:
+        log.error("LINE 推播(%s) FAIL (%s) %s", label, resp.status_code, resp.text)
