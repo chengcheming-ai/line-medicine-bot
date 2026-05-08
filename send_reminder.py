@@ -67,6 +67,8 @@ headers = {
     "Authorization": f"Bearer {TOKEN}",
 }
 
+TEST_URL = "https://images.unsplash.com/photo-1506905925346-21bda4d32df4?w=720&h=720&fit=crop&q=80"
+
 if img_url:
     payload = {
         "to": GROUP_ID,
@@ -76,6 +78,35 @@ if img_url:
             "previewImageUrl":    img_url,
         }],
     }
+    # 若圖片訊息失敗，立即用 Unsplash 測試 URL 診斷
+    resp = requests.post(
+        "https://api.line.me/v2/bot/message/push",
+        headers=headers,
+        json=payload,
+        timeout=15,
+    )
+    if resp.status_code != 200:
+        print(f"LINE 圖片失敗 ({resp.status_code}): {resp.text}")
+        test_payload = {
+            "to": GROUP_ID,
+            "messages": [{
+                "type": "image",
+                "originalContentUrl": TEST_URL,
+                "previewImageUrl":    TEST_URL,
+            }],
+        }
+        resp2 = requests.post(
+            "https://api.line.me/v2/bot/message/push",
+            headers=headers,
+            json=test_payload,
+            timeout=15,
+        )
+        status2 = "OK" if resp2.status_code == 200 else f"FAIL ({resp2.status_code}: {resp2.text})"
+        print(f"LINE 測試URL: {status2}")
+    else:
+        print(f"LINE 推播: OK")
+    # 略過下方的 resp 發送
+    import sys; sys.exit(0)
 else:
     # 備用：純文字
     payload = {
