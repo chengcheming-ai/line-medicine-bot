@@ -43,24 +43,37 @@ def make_headers():
     }
 
 def get_xrp_price():
+    # 嘗試 eToro live-rates 端點
+    for endpoint in ("live-rates", "rates"):
+        try:
+            r = requests.get(
+                f"{BASE_URL}/market-data/instruments/{endpoint}",
+                params={"instrumentIds": XRP_INST_ID},
+                headers=make_headers(), timeout=10
+            )
+            if r.status_code == 200:
+                data = r.json()
+                items = data if isinstance(data, list) else data.get("rates", data.get("items", data.get("instrumentRates", [])))
+                if isinstance(items, list):
+                    for item in items:
+                        for field in ("rate", "ask", "bid", "lastPrice", "close", "price"):
+                            if field in item:
+                                return float(item[field])
+        except Exception:
+            pass
+
+    # Fallback：CoinGecko 免費 API（無需 key）
     r = requests.get(
-        f"{BASE_URL}/market-data/instruments/rates",
-        params={"instrumentIds": XRP_INST_ID},
-        headers=make_headers(), timeout=10
+        "https://api.coingecko.com/api/v3/simple/price",
+        params={"ids": "ripple", "vs_currencies": "usd"},
+        timeout=10
     )
     r.raise_for_status()
-    data = r.json()
-    items = data if isinstance(data, list) else data.get("rates", data.get("items", data.get("instrumentRates", [])))
-    if isinstance(items, list):
-        for item in items:
-            for field in ("rate", "ask", "bid", "lastPrice", "close", "price"):
-                if field in item:
-                    return float(item[field])
-    elif isinstance(items, dict):
-        for field in ("rate", "ask", "bid", "lastPrice", "close", "price"):
-            if field in items:
-                return float(items[field])
-    raise ValueError(f"無法從回應中取得 XRP 價格: {data}")
+    price = r.json().get("ripple", {}).get("usd")
+    if price:
+        print("  [價格] 來源: CoinGecko")
+        return float(price)
+    raise ValueError("CoinGecko 無法取得 XRP 價格")
 
 def get_portfolio():
     r = requests.get(
