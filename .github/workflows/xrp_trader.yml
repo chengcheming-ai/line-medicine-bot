@@ -36,8 +36,10 @@ jobs:
 
       - name: Run grid trader
         env:
-          ETORO_API_KEY:  ${{ secrets.ETORO_API_KEY }}
-          ETORO_USER_KEY: ${{ secrets.ETORO_USER_KEY }}
+          ETORO_API_KEY:        ${{ secrets.ETORO_API_KEY }}
+          ETORO_USER_KEY:       ${{ secrets.ETORO_USER_KEY }}
+          CHANNEL_ACCESS_TOKEN: ${{ secrets.CHANNEL_ACCESS_TOKEN }}
+          USER_ID:              ${{ secrets.USER_ID }}
         run: python xrp_grid_trader.py
 
       - name: Commit state

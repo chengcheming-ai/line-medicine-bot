@@ -6,13 +6,18 @@ Sub Portfolio: God's gift（真實帳戶）
 賣出邏輯：XRP 每漲 0.02，賣出持倉 20%
 """
 import os, uuid, json, requests
-from datetime import datetime
+from datetime import datetime, timezone
 from dotenv import load_dotenv
 
 load_dotenv()
 
 ETORO_API_KEY  = os.getenv("ETORO_API_KEY")
 ETORO_USER_KEY = os.getenv("ETORO_USER_KEY")
+LINE_TOKEN     = os.getenv("CHANNEL_ACCESS_TOKEN")
+LINE_USER_ID   = os.getenv("USER_ID")
+
+PNL_THRESHOLD  = 5.0   # 觸發通知的 P&L 百分比（±5%）
+ALERT_COOLDOWN = 3600  # 同類型通知間隔秒數（1 小時）
 
 BASE_URL    = "https://public-api.etoro.com/api/v1"
 XRP_INST_ID = 100003  # XRP instrument ID（固定值）
@@ -90,6 +95,70 @@ def sell_xrp_position(position_id, instrument_id, units_to_close):
     )
     r.raise_for_status()
     return r.json()
+
+# ── LINE 推播 ─────────────────────────────────────────────────
+def send_line_message(text):
+    if not LINE_TOKEN or not LINE_USER_ID:
+        print("  [LINE] 未設定 TOKEN 或 USER_ID，略過通知")
+        return
+    r = requests.post(
+        "https://api.line.me/v2/bot/message/push",
+        headers={"Content-Type": "application/json", "Authorization": f"Bearer {LINE_TOKEN}"},
+        json={"to": LINE_USER_ID, "messages": [{"type": "text", "text": text}]},
+        timeout=15,
+    )
+    status = "OK" if r.status_code == 200 else f"FAIL ({r.status_code})"
+    print(f"  [LINE] 推播: {status}")
+
+def check_pnl_alert(xrp_positions, price, state):
+    if not xrp_positions:
+        return
+
+    total_invested = sum(float(p.get("invested", p.get("amount", 0))) for p in xrp_positions)
+    total_pnl      = sum(float(p.get("netProfit", p.get("pnl", 0))) for p in xrp_positions)
+
+    if total_invested <= 0:
+        return
+
+    pnl_pct = total_pnl / total_invested * 100
+    now_ts  = datetime.now(timezone.utc).timestamp()
+    print(f"\n--- P&L 檢查: {pnl_pct:+.2f}% (${total_pnl:+.2f} / ${total_invested:.2f}) ---")
+
+    last_type = state.get("last_alert_type")
+    last_time = state.get("last_alert_time", 0)
+    cooldown_ok = (now_ts - last_time) >= ALERT_COOLDOWN
+
+    if pnl_pct >= PNL_THRESHOLD:
+        if last_type != "profit" or cooldown_ok:
+            msg = (
+                f"📈 XRP 投資獲利通知\n"
+                f"盈利: +{pnl_pct:.2f}%（+${total_pnl:.2f}）\n"
+                f"XRP 現價: ${price:.4f}\n"
+                f"投入總額: ${total_invested:.2f}"
+            )
+            print(f"  觸發獲利通知（≥{PNL_THRESHOLD}%）")
+            send_line_message(msg)
+            state["last_alert_type"] = "profit"
+            state["last_alert_time"] = now_ts
+
+    elif pnl_pct <= -PNL_THRESHOLD:
+        if last_type != "loss" or cooldown_ok:
+            msg = (
+                f"📉 XRP 投資虧損通知\n"
+                f"虧損: {pnl_pct:.2f}%（${total_pnl:.2f}）\n"
+                f"XRP 現價: ${price:.4f}\n"
+                f"投入總額: ${total_invested:.2f}"
+            )
+            print(f"  觸發虧損通知（≤-{PNL_THRESHOLD}%）")
+            send_line_message(msg)
+            state["last_alert_type"] = "loss"
+            state["last_alert_time"] = now_ts
+
+    else:
+        if last_type is not None:
+            print("  P&L 回到 ±5% 範圍內，重置通知狀態")
+            state["last_alert_type"] = None
+            state["last_alert_time"] = 0
 
 # ── 狀態管理 ──────────────────────────────────────────────────
 def load_state():
@@ -189,6 +258,9 @@ def run():
                     print(f"    倉位 {pos_id} 賣出失敗: {e}")
             if sold_any:
                 state["sold"][key] = True
+
+    # ── P&L 監控 ──────────────────────────────────────────────
+    check_pnl_alert(xrp_positions, price, state)
 
     save_state(state)
     print("\n完成，狀態已儲存")
