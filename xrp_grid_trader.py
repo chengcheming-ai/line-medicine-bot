@@ -39,15 +39,14 @@ def make_headers():
 def find_xrp_instrument_id():
     r = requests.get(
         f"{BASE_URL}/market-data/search",
-        params={"internalSymbolFull": "XRPUSD"},
+        params={"internalSymbolFull": "XRP"},
         headers=make_headers(), timeout=10
     )
     r.raise_for_status()
     data = r.json()
-    items = data if isinstance(data, list) else data.get("instruments", [data])
+    items = data.get("items", []) if isinstance(data, dict) else data
     for item in items:
-        symbol = str(item.get("symbolFull", item.get("internalSymbolFull", ""))).upper()
-        if "XRP" in symbol:
+        if item.get("internalSymbolFull") == "XRP":
             return item["instrumentId"]
     raise ValueError(f"找不到 XRP 商品 ID，回應: {data}")
 
