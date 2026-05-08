@@ -12,6 +12,7 @@ load_dotenv()
 
 TOKEN    = os.getenv("CHANNEL_ACCESS_TOKEN")
 GROUP_ID = os.getenv("GROUP_ID")
+USER_ID  = os.getenv("USER_ID")
 IMG_PATH = os.path.join(os.path.dirname(os.path.abspath(__file__)), "reminder.jpg")
 
 # ── 1. 生成圖片（自動依時段選話語/經文/背景）────────────────
@@ -102,7 +103,13 @@ if img_url:
             timeout=15,
         )
         status2 = "OK" if resp2.status_code == 200 else f"FAIL ({resp2.status_code}: {resp2.text})"
-        print(f"LINE 測試URL: {status2}")
+        print(f"LINE 測試URL(group): {status2}")
+        # 改用 USER_ID 再試一次
+        if USER_ID:
+            user_payload = {"to": USER_ID, "messages": [{"type": "image", "originalContentUrl": img_url, "previewImageUrl": img_url}]}
+            resp3 = requests.post("https://api.line.me/v2/bot/message/push", headers=headers, json=user_payload, timeout=15)
+            status3 = "OK" if resp3.status_code == 200 else f"FAIL ({resp3.status_code}: {resp3.text})"
+            print(f"LINE 測試URL(user): {status3}")
     else:
         print(f"LINE 推播: OK")
     # 略過下方的 resp 發送
