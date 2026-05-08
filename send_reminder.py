@@ -63,25 +63,18 @@ headers = {
 }
 
 if img_url:
-    payload = {
-        "to": USER_ID,
-        "messages": [{
-            "type": "image",
-            "originalContentUrl": img_url,
-            "previewImageUrl":    img_url,
-        }],
-    }
+    msg = [{"type": "image", "originalContentUrl": img_url, "previewImageUrl": img_url}]
 else:
-    payload = {
-        "to": USER_ID,
-        "messages": [{"type": "text", "text": "記得吃藥喔！耶穌愛你，主與你同在。"}],
-    }
+    msg = [{"type": "text", "text": "記得吃藥喔！耶穌愛你，主與你同在。"}]
 
-resp = requests.post(
-    "https://api.line.me/v2/bot/message/push",
-    headers=headers,
-    json=payload,
-    timeout=15,
-)
-status = "OK" if resp.status_code == 200 else f"FAIL ({resp.status_code}: {resp.text})"
-print(f"LINE 推播: {status}")
+for target_id, label in [(USER_ID, "個人"), (os.getenv("GROUP_ID"), "群組")]:
+    if not target_id:
+        continue
+    resp = requests.post(
+        "https://api.line.me/v2/bot/message/push",
+        headers=headers,
+        json={"to": target_id, "messages": msg},
+        timeout=15,
+    )
+    status = "OK" if resp.status_code == 200 else f"FAIL ({resp.status_code}: {resp.text})"
+    print(f"LINE 推播({label}): {status}")
