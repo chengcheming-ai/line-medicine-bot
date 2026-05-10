@@ -96,7 +96,7 @@ def divider(draw, y, pad=65, color=(180, 148, 60)):
 
 def detect_slot():
     h = datetime.now(ZoneInfo("Asia/Taipei")).hour
-    if h == 13: return "afternoon"
+    if 10 <= h < 17: return "afternoon"
     return "evening"
 
 # ── 主程式 ───────────────────────────────────────────────────

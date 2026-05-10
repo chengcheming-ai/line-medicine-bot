@@ -2,8 +2,8 @@ name: 吃藥提醒
 
 on:
   schedule:
-    - cron: '7 5 * * *'    # 13:07 Asia/Taipei
-    - cron: '7 12 * * *'   # 20:07 Asia/Taipei
+    - cron: '7 5 * * *'     # 13:07 Asia/Taipei（午餐後）
+    - cron: '7 12 * * *'   # 20:07 Asia/Taipei（晚餐後）
   workflow_dispatch:        # 手動觸發（測試用）
 
 jobs:
