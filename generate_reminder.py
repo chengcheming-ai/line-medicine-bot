@@ -59,8 +59,8 @@ VERSES = [
     (["我留下平安給你們，",           "我將我的平安賜給你們。"], "約翰福音 14:27"),
 ]
 
-# ── 背景照片（風景/山水/草地/湖景/日出/夕陽/天空）───────────
-BACKGROUNDS = [
+# ── 背景照片（白天：午後提醒用）────────────────────────────
+BACKGROUNDS_AFTERNOON = [
     # 夕陽山景
     "https://images.unsplash.com/photo-1506905925346-21bda4d32df4?w=720&h=820&fit=crop&q=80",
     # 海邊夕陽
@@ -81,6 +81,30 @@ BACKGROUNDS = [
     "https://images.unsplash.com/photo-1534088568595-a066f410bcda?w=720&h=820&fit=crop&q=80",
     # 薰衣草花田
     "https://images.unsplash.com/photo-1499002238440-d264edd596ec?w=720&h=820&fit=crop&q=80",
+]
+
+# ── 背景照片（夜晚：晚間提醒用）────────────────────────────
+BACKGROUNDS_EVENING = [
+    # 夜晚山景星空
+    "https://images.unsplash.com/photo-1534447677768-be436bb09401?w=720&h=820&fit=crop&q=80",
+    # 銀河星空
+    "https://images.unsplash.com/photo-1519681393784-d120267933ba?w=720&h=820&fit=crop&q=80",
+    # 夜間山景
+    "https://images.unsplash.com/photo-1536152470836-b943b246224c?w=720&h=820&fit=crop&q=80",
+    # 夜晚湖景倒影
+    "https://images.unsplash.com/photo-1500877015165-e1fb7f2db007?w=720&h=820&fit=crop&q=80",
+    # 夜空雲層
+    "https://images.unsplash.com/photo-1485470733090-0aae1788d5af?w=720&h=820&fit=crop&q=80",
+    # 星空曠野
+    "https://images.unsplash.com/photo-1536711614557-55e83990c679?w=720&h=820&fit=crop&q=80",
+    # 夜晚森林月光
+    "https://images.unsplash.com/photo-1509226704106-8a5a71ffbfa4?w=720&h=820&fit=crop&q=80",
+    # 深夜海岸
+    "https://images.unsplash.com/photo-1523305846158-488dedcf8629?w=720&h=820&fit=crop&q=80",
+    # 夜晚城市遠景
+    "https://images.unsplash.com/photo-1502790671504-542ad42d5189?w=720&h=820&fit=crop&q=80",
+    # 夜間曠野星軌
+    "https://images.unsplash.com/photo-1480983781676-79bfa184cc9f?w=720&h=820&fit=crop&q=80",
 ]
 
 # ── 工具函式 ─────────────────────────────────────────────────
@@ -108,7 +132,8 @@ def generate(slot=None, out_path=None):
 
     msg   = random.choice(MESSAGES[slot])
     verse_lines, verse_ref = random.choice(VERSES)
-    bg_url = random.choice(BACKGROUNDS)
+    bg_pool = BACKGROUNDS_AFTERNOON if slot == "afternoon" else BACKGROUNDS_EVENING
+    bg_url = random.choice(bg_pool)
 
     # 下載背景
     bg = None
