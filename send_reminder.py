@@ -4,7 +4,7 @@ LINE 吃藥提醒推播
 2. 上傳至 GitHub repo 取得公開 HTTPS URL
 3. 透過 LINE Push API 發送圖片訊息至個人帳號
 """
-import os, base64, time, logging, requests
+import os, sys, base64, time, logging, requests
 from dotenv import load_dotenv
 from logging.handlers import RotatingFileHandler
 from generate_reminder import generate
@@ -79,6 +79,8 @@ if img_url:
 else:
     msg = [{"type": "text", "text": "記得吃藥喔！耶穌愛你，主與你同在。"}]
 
+push_failed = False
+
 for target_id, label in [(USER_ID, "個人"), (os.getenv("GROUP_ID"), "群組")]:
     if not target_id:
         continue
@@ -92,3 +94,7 @@ for target_id, label in [(USER_ID, "個人"), (os.getenv("GROUP_ID"), "群組")]
         log.info("LINE 推播(%s) OK", label)
     else:
         log.error("LINE 推播(%s) FAIL (%s) %s", label, resp.status_code, resp.text)
+        push_failed = True
+
+if push_failed:
+    sys.exit(1)

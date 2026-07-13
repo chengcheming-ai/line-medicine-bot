@@ -6,6 +6,7 @@ on:
 jobs:
   send-reminder:
     runs-on: ubuntu-latest
+    timeout-minutes: 20      # 防止 runner 卡住時無限期佔用（例如 apt 鎖衝突)
     permissions:
       contents: write
     steps:
@@ -17,16 +18,38 @@ jobs:
           python-version: '3.11'
           cache: 'pip'
 
-      - name: Install Chinese fonts
-        run: sudo apt-get install -y fonts-noto-cjk
-
-      - name: Install dependencies
-        run: pip install -r requirements.txt
-
-      - name: Send reminder
+      - name: 執行提醒（失敗後等 5 分鐘重試一次，連續兩次失敗才通知）
         env:
           CHANNEL_ACCESS_TOKEN: ${{ secrets.CHANNEL_ACCESS_TOKEN }}
           GROUP_ID: ${{ secrets.GROUP_ID }}
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
           USER_ID: ${{ secrets.USER_ID }}
-        run: python send_reminder.py
+          DEBIAN_FRONTEND: noninteractive
+        run: |
+          run_pipeline() {
+            timeout 180 sudo apt-get install -y fonts-noto-cjk || return 1
+            pip install -r requirements.txt || return 1
+            python send_reminder.py || return 1
+          }
+
+          echo "===== 第 1 次嘗試 ====="
+          if run_pipeline; then
+            echo "第 1 次嘗試成功"
+            exit 0
+          fi
+
+          echo "第 1 次嘗試失敗，等待 5 分鐘後重試..."
+          sleep 300
+
+          echo "===== 第 2 次嘗試 ====="
+          if run_pipeline; then
+            echo "第 2 次嘗試成功"
+            exit 0
+          fi
+
+          echo "連續 2 次執行失敗，發送失敗通知"
+          curl -s -X POST https://api.line.me/v2/bot/message/push \
+            -H "Content-Type: application/json" \
+            -H "Authorization: Bearer $CHANNEL_ACCESS_TOKEN" \
+            -d "{\"to\": \"$USER_ID\", \"messages\": [{\"type\": \"text\", \"text\": \"⚠️ 吃藥提醒連續兩次執行失敗，請至 GitHub Actions 檢查記錄。\"}]}"
+          exit 1
