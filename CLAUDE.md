@@ -78,7 +78,8 @@ GITHUB_TOKEN=xxx
 
 - LINE Bot 若設有 IP 白名單，本地執行會收到 403；GitHub Actions 執行不受影響
 - 吃藥提醒 workflow 執行時 `GITHUB_TOKEN` 由 Actions 自動注入，無需手動設定
-- workflow 有 `timeout-minutes: 20` 防止 runner 卡住（例如 apt 鎖衝突）無限期佔用
+- workflow 有 `timeout-minutes: 25` 防止 runner 卡住（例如 apt 鎖衝突）無限期佔用；
+  內部 apt/pip/send_reminder.py 三步也各自包了 `timeout`（120s/90s/180s），確保沒有任何一步是無上限等待
 - 若第 1 次嘗試（安裝字型/依賴/發送）失敗，會等待 5 分鐘後自動重試第 2 次；
   連續兩次都失敗才會發送「⚠️ 連續兩次執行失敗」的 LINE 文字通知
 - `send_reminder.py` 只要有任一目標（個人/群組）LINE 推播失敗，就會以非 0 狀態碼結束，

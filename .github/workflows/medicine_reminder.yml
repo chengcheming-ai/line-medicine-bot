@@ -6,7 +6,7 @@ on:
 jobs:
   send-reminder:
     runs-on: ubuntu-latest
-    timeout-minutes: 20      # 防止 runner 卡住時無限期佔用（例如 apt 鎖衝突)
+    timeout-minutes: 25      # 防止 runner 卡住時無限期佔用（例如 apt 鎖衝突），並留緩衝讓失敗通知來得及送出
     permissions:
       contents: write
     steps:
@@ -27,9 +27,9 @@ jobs:
           DEBIAN_FRONTEND: noninteractive
         run: |
           run_pipeline() {
-            timeout 180 sudo apt-get install -y fonts-noto-cjk || return 1
-            pip install -r requirements.txt || return 1
-            python send_reminder.py || return 1
+            timeout 120 sudo apt-get install -y fonts-noto-cjk || return 1
+            timeout 90 pip install -r requirements.txt || return 1
+            timeout 180 python send_reminder.py || return 1
           }
 
           echo "===== 第 1 次嘗試 ====="
