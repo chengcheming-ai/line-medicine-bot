@@ -15,7 +15,8 @@ W, H = 720, 718
 if sys.platform == "win32":
     MSJH = "C:/Windows/Fonts/msjh.ttc"
 else:
-    MSJH = "/usr/share/fonts/opentype/noto/NotoSansCJK-Regular.ttc"
+    # 字型隨 repo 一起提交，避免每次執行都從 apt 下載 61 MB 套件（apt 伺服器慢時會逾時失敗）
+    MSJH = os.path.join(os.path.dirname(os.path.abspath(__file__)), "fonts", "NotoSansCJK-Regular.ttc")
 
 # ── 時段關心話語 ─────────────────────────────────────────────
 MESSAGES = {

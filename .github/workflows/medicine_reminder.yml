@@ -6,7 +6,7 @@ on:
 jobs:
   send-reminder:
     runs-on: ubuntu-latest
-    timeout-minutes: 25      # 防止 runner 卡住時無限期佔用（例如 apt 鎖衝突），並留緩衝讓失敗通知來得及送出
+    timeout-minutes: 25      # 防止 runner 卡住時無限期佔用，並留緩衝讓失敗通知來得及送出
     permissions:
       contents: write
     steps:
@@ -24,10 +24,8 @@ jobs:
           GROUP_ID: ${{ secrets.GROUP_ID }}
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
           USER_ID: ${{ secrets.USER_ID }}
-          DEBIAN_FRONTEND: noninteractive
         run: |
           run_pipeline() {
-            timeout 120 sudo apt-get install -y fonts-noto-cjk || return 1
             timeout 90 pip install -r requirements.txt || return 1
             timeout 180 python send_reminder.py || return 1
           }
